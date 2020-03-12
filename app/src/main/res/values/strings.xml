@@ -1,0 +1,11 @@
+<resources>
+    <string name="app_name">QR mosip</string>
+
+    <string name="fname">First Name</string>
+    <string name="lname">Last Name</string>
+    <string name="address">Address</string>
+
+    <string name="selectdate">Date Of Birth</string>
+
+    <string name="uploadimage">Take/Change Photo</string>
+</resources>
