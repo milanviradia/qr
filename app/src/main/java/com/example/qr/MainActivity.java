@@ -8,6 +8,7 @@ import androidx.core.content.FileProvider;
 import android.app.AlertDialog;
 import android.app.DatePickerDialog;
 import android.content.ActivityNotFoundException;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -23,6 +24,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
+import android.provider.OpenableColumns;
 import android.util.Base64;
 import android.util.Log;
 import android.view.Menu;
@@ -46,6 +48,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Locale;
@@ -76,8 +79,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     final int PICK_IMAGE_REQUEST = 2;
     //keep track of cropping intent
     final int PIC_CROP = 3;
-    //captured picture uri
 
+    //captured picture uri
     File storeDirectory,f;
     String ConvertImage;
 
@@ -250,7 +253,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             if (requestCode == CAMERA_CAPTURE) {
 
                 //create instance of File with same name we created before to get image from storage
-                File file = new File(Environment.getExternalStorageDirectory()+ IMAGE_DIRECTORY +File.separator +  "img.jpg");
+                File file = new File(Environment.getExternalStorageDirectory()+ IMAGE_DIRECTORY +File.separator +  "temp_img.jpg");
 
                 Uri cameraPicUri = FileProvider.getUriForFile(getApplicationContext(),
                         "com.example.mosip.fileprovider", file);
@@ -277,7 +280,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 }
                 imageView.setImageBitmap(galleryPic);
                 cropImage(gallerypicUri);
-                //compressImage(gallerypicUri.toString());
+                //compressImage(gallerypicUri);
             }
         }
 
@@ -297,8 +300,19 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 }
                 // Log.d("photo = ", croppedPic.toString());
                 imageView.setImageBitmap(croppedPic);
-                compressImage(croppedPicUri.toString());
-                //saveImage(croppedPic);
+
+                compressImage(croppedPicUri);
+
+
+                saveImage(croppedPic,"crop");
+
+                File file = new File(Environment.getExternalStorageDirectory()+ IMAGE_DIRECTORY +File.separator +  "temp_img.jpg");
+
+                /**
+                 * Delete the temporary image
+                 */
+                if (file.exists())
+                    file.delete();
             }
         }
     }
@@ -326,8 +340,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             cropIntent.putExtra("return-data", true);
 
             //start the activity - we handle returning in onActivityResult
-            startActivityForResult(cropIntent, PIC_CROP);
-
+            startActivityForResult(Intent.createChooser(cropIntent, "Crop Image Using"), PIC_CROP);
         } catch(ActivityNotFoundException anfe){
             //display an error message
             String errorMessage = "Your device doesn't support the crop action!";
@@ -335,7 +348,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
 
-    public String saveImage(Bitmap myBitmap)  {
+    public String saveImage(Bitmap myBitmap,String after)  {
 
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         myBitmap.compress(Bitmap.CompressFormat.JPEG, 64, bytes);
@@ -346,8 +359,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         Log.d("Base 64", ConvertImage);
 
         try {
-            f = new File(storeDirectory, Calendar.getInstance()
-                    .getTimeInMillis() + ".jpg");
+            String file_name = "compressed_"+Calendar.getInstance().getTimeInMillis() + ".jpg";
+            String file_name1 = "cropped_"+Calendar.getInstance().getTimeInMillis() + ".jpg";
+            if(after == "compress")
+                f = new File(storeDirectory,file_name);
+            else
+                f = new File(storeDirectory,file_name1);
             f.createNewFile();
             FileOutputStream fo = new FileOutputStream(f);
             fo.write(bytes.toByteArray());
@@ -355,7 +372,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     new String[]{f.getPath()},
                     new String[]{"image/jpeg"}, null);
             fo.close();
-            Log.d("TAG", "File Saved to : " + f.getAbsolutePath());
+            Log.d("TAG", "Image Saved to : " + f.getAbsolutePath());
             Toast.makeText(this, "Image Saved to : "+ f.getAbsolutePath() , Toast.LENGTH_LONG).show();
             return f.getAbsolutePath();
         }
@@ -403,10 +420,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
 
-    public void compressImage(String imageUri) {
+    public void compressImage(Uri imageUri) {
 
-        String filePath = getRealPathFromURI(imageUri);
+        String filePath = getRealPathFromURI(getApplicationContext(),imageUri);
         Bitmap scaledBitmap = null;
+        Log.d("file path =",filePath);
 
         BitmapFactory.Options options = new BitmapFactory.Options();
 
@@ -486,20 +504,46 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         imageView.setImageBitmap(scaledBitmap);
 
-        saveImage(scaledBitmap);
+        saveImage(scaledBitmap,"compress");
     }
 
 
-    private String getRealPathFromURI(String contentURI) {
-        Uri contentUri = Uri.parse(contentURI);
-        Cursor cursor = getContentResolver().query(contentUri, null, null, null, null);
-        if (cursor == null) {
-            return contentUri.getPath();
-        } else {
-            cursor.moveToFirst();
-            int index = cursor.getColumnIndex(MediaStore.Images.ImageColumns.DATA);
-            return cursor.getString(index);
+    private String getRealPathFromURI(Context context, Uri uri) {
+        Uri returnUri = uri;
+        Cursor returnCursor = context.getContentResolver().query(returnUri, null, null, null, null);
+        /*
+         * Get the column indexes of the data in the Cursor,
+         *     * move to the first row in the Cursor, get the data,
+         *     * and display it.
+         * */
+        int nameIndex = returnCursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+        int sizeIndex = returnCursor.getColumnIndex(OpenableColumns.SIZE);
+        returnCursor.moveToFirst();
+        String name = (returnCursor.getString(nameIndex));
+        File file = new File(context.getFilesDir(), name);
+        try {
+            InputStream inputStream = context.getContentResolver().openInputStream(uri);
+            FileOutputStream outputStream = new FileOutputStream(file);
+            int read = 0;
+            int maxBufferSize = 1 * 1024 * 1024;
+            int bytesAvailable = inputStream.available();
+
+            //int bufferSize = 1024;
+            int bufferSize = Math.min(bytesAvailable, maxBufferSize);
+
+            final byte[] buffers = new byte[bufferSize];
+            while ((read = inputStream.read(buffers)) != -1) {
+                outputStream.write(buffers, 0, read);
+            }
+            Log.e("File Size", "Size " + file.length());
+            inputStream.close();
+            outputStream.close();
+            Log.e("File Path", "Path " + file.getPath());
+            Log.e("File Size", "Size " + file.length());
+        } catch (Exception e) {
+            Log.e("Exception", e.getMessage());
         }
+        return file.getPath();
     }
 
     public int calculateInSampleSize(BitmapFactory.Options options, int reqWidth, int reqHeight) {
@@ -543,7 +587,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                                         case 0:
                                             try {
 
-                                                File file = new File(Environment.getExternalStorageDirectory()+ IMAGE_DIRECTORY +File.separator  +  "img.jpg");
+                                                File file = new File(Environment.getExternalStorageDirectory()+ IMAGE_DIRECTORY +File.separator  +  "temp_img.jpg");
 
                                                 Uri outputFileUri = FileProvider.getUriForFile(getApplicationContext(),
                                                         "com.example.mosip.fileprovider", file);
@@ -551,7 +595,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                                                 //use standard intent to capture an image
                                                 Intent takePictureIntent = new Intent("android.media.action.IMAGE_CAPTURE");
 
-                                                /*create instance of File with name img.jpg*/
+                                                /*create instance of File with name temp_img.jpg*/
                                                 /*put uri as extra in intent object*/
                                                 takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, outputFileUri);
                                                 takePictureIntent.setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
@@ -568,7 +612,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                                             }
                                             break;
                                         case 1:
-                                            Intent galleryIntent = new Intent(Intent.ACTION_PICK, android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+                                            Intent galleryIntent = new Intent(Intent.ACTION_OPEN_DOCUMENT, android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
                                             // Start the Intent
                                             galleryIntent.setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
                                                     | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);

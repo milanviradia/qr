@@ -21,7 +21,6 @@ import org.json.JSONObject;
 
 public class ScanQR extends AppCompatActivity implements View.OnClickListener {
 
-
     EditText fname, lname, dob, address;
 
     Button scanQR;
