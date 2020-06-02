@@ -41,7 +41,6 @@ import com.google.zxing.WriterException;
 import com.google.zxing.common.BitMatrix;
 import com.journeyapps.barcodescanner.BarcodeEncoder;
 
-import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
@@ -49,9 +48,13 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Locale;
+import java.util.zip.DataFormatException;
+import java.util.zip.Deflater;
+import java.util.zip.Inflater;
 
 import de.hdodenhof.circleimageview.CircleImageView;
 
@@ -72,6 +75,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     CircleImageView imageView;
     ImageView qrImage;
     String fnameHolder, lnameHolder, dobHolder, addressHolder;
+    String Compressedmessage="";
 
     //keep track of camera capture intent
     final int CAMERA_CAPTURE = 1;
@@ -301,10 +305,22 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 // Log.d("photo = ", croppedPic.toString());
                 imageView.setImageBitmap(croppedPic);
 
-                compressImage(croppedPicUri);
+                try {
+                    compressImage(croppedPicUri);
+                } catch (UnsupportedEncodingException e) {
+                    e.printStackTrace();
+                } catch (DataFormatException e) {
+                    e.printStackTrace();
+                }
 
 
-                saveImage(croppedPic,"crop");
+                try {
+                    saveImage(croppedPic,"crop");
+                } catch (UnsupportedEncodingException e) {
+                    e.printStackTrace();
+                } catch (DataFormatException e) {
+                    e.printStackTrace();
+                }
 
                 File file = new File(Environment.getExternalStorageDirectory()+ IMAGE_DIRECTORY +File.separator +  "temp_img.jpg");
 
@@ -348,7 +364,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
 
-    public String saveImage(Bitmap myBitmap,String after)  {
+    public String saveImage(Bitmap myBitmap,String after) throws UnsupportedEncodingException, DataFormatException {
 
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         myBitmap.compress(Bitmap.CompressFormat.JPEG, 64, bytes);
@@ -357,6 +373,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         ConvertImage = Base64.encodeToString(byteArrayVar, Base64.DEFAULT);
         Log.d("Base 64", ConvertImage);
+        System.out.println("Base 64 image length : " + ConvertImage.length());
+
 
         try {
             String file_name = "compressed_"+Calendar.getInstance().getTimeInMillis() + ".jpg";
@@ -382,7 +400,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         return "";
     }
 
-
     public String saveQR(Bitmap myBitmap) {
 
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
@@ -400,8 +417,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
 
         try {
-            File f = new File(wallpaperDirectory, Calendar.getInstance()
-                    .getTimeInMillis() + ".jpg");
+            File f = new File(wallpaperDirectory, fnameHolder+"_"+lnameHolder + ".jpg");
             f.createNewFile();
             FileOutputStream fo = new FileOutputStream(f);
             fo.write(bytes.toByteArray());
@@ -419,8 +435,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         return "";
     }
 
-
-    public void compressImage(Uri imageUri) {
+    public void compressImage(Uri imageUri) throws UnsupportedEncodingException, DataFormatException {
 
         String filePath = getRealPathFromURI(getApplicationContext(),imageUri);
         Bitmap scaledBitmap = null;
@@ -437,8 +452,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         int actualWidth = options.outWidth;
 
 //      max Height and width values of the compressed image is taken as 816x612
-        float maxHeight = 816.0f;
-        float maxWidth = 612.0f;
+        float maxHeight = 256.0f;
+        float maxWidth = 256.0f;
         float imgRatio = actualWidth / actualHeight;
         float maxRatio = maxWidth / maxHeight;
 
@@ -506,7 +521,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         saveImage(scaledBitmap,"compress");
     }
-
 
     private String getRealPathFromURI(Context context, Uri uri) {
         Uri returnUri = uri;
@@ -586,7 +600,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                                     switch (which) {
                                         case 0:
                                             try {
-
                                                 File file = new File(Environment.getExternalStorageDirectory()+ IMAGE_DIRECTORY +File.separator  +  "temp_img.jpg");
 
                                                 Uri outputFileUri = FileProvider.getUriForFile(getApplicationContext(),
@@ -644,13 +657,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 if(!isEmpty()) {
                     JSONObject json_data = new JSONObject();
                     try {
-                        json_data.put("firstname", fnameHolder);
-                        json_data.put("lastname", lnameHolder);
-                        json_data.put("dob", dobHolder);
-                        json_data.put("address", addressHolder);
-                        json_data.put("image", ConvertImage);
+                        json_data.put("name", "mohit");
+                        json_data.put("email", "mohit.jain@gmail.com");
+                        json_data.put("dob", "31-04-1996");
+                        json_data.put("image", "/9j/4AAQSkZJRgABAQEAYABgAAD//gA7Q1JFQVRPUjogZ2QtanBlZyB2MS4wICh1c2luZyBJSkcgSlBFRyB2ODApLCBxdWFsaXR5ID0gMzAK/9sAQwAbEhQXFBEbFxYXHhwbIChCKyglJShROj0wQmBVZWRfVV1baniZgWpxkHNbXYW1hpCeo6utq2eAvMm6pseZqKuk/9sAQwEcHh4oIyhOKytOpG5dbqSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSk/8AAEQgAhwCHAwEiAAIRAQMRAf/EAB8AAAEFAQEBAQEBAAAAAAAAAAABAgMEBQYHCAkKC//EALUQAAIBAwMCBAMFBQQEAAABfQECAwAEEQUSITFBBhNRYQcicRQygZGhCCNCscEVUtHwJDNicoIJChYXGBkaJSYnKCkqNDU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6g4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2drh4uPk5ebn6Onq8fLz9PX29/j5+v/EAB8BAAMBAQEBAQEBAQEAAAAAAAABAgMEBQYHCAkKC//EALURAAIBAgQEAwQHBQQEAAECdwABAgMRBAUhMQYSQVEHYXETIjKBCBRCkaGxwQkjM1LwFWJy0QoWJDThJfEXGBkaJicoKSo1Njc4OTpDREVGR0hJSlNUVVZXWFlaY2RlZmdoaWpzdHV2d3h5eoKDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uLj5OXm5+jp6vLz9PX29/j5+v/aAAwDAQACEQMRAD8Auk4qvNIPoKfI+Tx0rMv5yDsB570AQ3lx5h2L0HWoEGDTB1p+cUATKR0AqeJRmqsfJq5FwKALKgAU/NQhqXcaAJ6Dio1YY5pS3FADZAMVSmGTmrbNmq0oODigCo3Bpd3HWkf0qPJoAUnmrFkxWQlT26VWzmprRws656HigDaicMPQ0U1AGAI4ooAbcyeUnHWsOZi0hJOc1oajJ0UetZhNACg0oOTTRzU0EZZhxxQBPBHkA1aVeMUsUYAqXgUANC5FJtNSbgKYz0AJTwuaYDTlbigAK1DIpq0CKjkxQBmyrgmqzda1JIwwrPmjKsQRQBF0pynmm0A0AbdhN5kYB5I60Vn2MpRzzjiigBLtucZ61Uqa5OGIBqCgBy8nFaEAVFx3qjEOc1cjPc0ATsxxxUZlZTS7wBycVFKykcMCaAJRcjvThIGPWqG7mp7f52xmgC30FRmXbU2w7ao3B2tQBI10egpolZjVYNk1NFtP8XNAE4Y0yXDrz1p+eMVFIcHigCqwwaZUr9aioAcpwc0Ui0UADnJJzmm0489KEXLCgCaNMLmlaTauBU23jFQPGc5xQAzJ6nmkL542inhD6Uu0DqAKAIuScCrlkhD89CKijG9toFX4o9uKALJA2fhWVdISxx2NarDKVWaIMTQBkgEHmnbgv8OasyR7Tz0qJ0z2zQAwSHtxTxJu61HsI7YpVQ5oAeRkVAww1WlXioJVw9ADBRSgUUAJUkQ+cU1lIJzT4h8woAuxrk81IY1YdKiU9KsRqD1oArPbZPysaatkxOWOBWiFUUjuqigCsEWHgdalQ561FvBYsab543HBFAF5iuyqrlgcjmmGfjrSJOCSCaAJEKyggio2tdp45X0ppbZIGXoetW45FYUAVfIHoaBGq1bZQRxVdkIPWgCNlx0qpP8Afq4zdqqTffoAjUZ6CirtpDwWxzRQA65tiW3KKqhSrYZSCK25DkdKoXUeMMe/agCJTU6OAKqqadv460AWWlwOtQNIZGwKhdzToG5oAfOMKAKrAbTkVcdS4qu0ZFADS56VHjnNO71JHEWPtQBLEN0eD1oSQxsQe1PC7Biq0x+fNAF0TcdaRpOKqBvel3E0AOJyaYAGkANKafbJvmUenNAF2JccY7UVPGn6UUAOZfWq11GWQY6g1caomGc0AZPQ001JKNsjD0NMNAEbAmlRinbNSAjFAFAAJZX4XikMMz84z+NLnFAcjvQAzyJv7n60uyaPquPxp5lbsxphZ2PJoADNIOGFRMxPWpetNYZoAYtSLTcU5elACnrVyxgYuJDwoFUxycVq24IVVPB6UAWAKKUUUABqJvWqV7KIiAj5qkLyZGyrnHoaALN2B5mfWq9K955ygOgDeopKAE704dKb3pwNACkUwgjtUinmplIoAp5PpSgk1dyKjcL2FAEAGKRulPbFMJoAaKeKaKeKAJbZN8o9BWknJz71BZxbIs92q0gxQA/FFFFAHMySl2J9aQIW5oooAXZtqVDkUUUAONJyDRRQA4GnhzRRQAbzSFjRRQAwmm96KKAHClBxzjpRRQBpW13HLhcbW9MVbA70UUALRRRQB//Z"
+                        );
 
-                    } catch(JSONException e) {
+                    } catch (Exception e) {
                         e.printStackTrace();
                     }
                     MultiFormatWriter multiFormatWriter = new MultiFormatWriter();

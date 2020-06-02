@@ -11,6 +11,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.zxing.integration.android.IntentIntegrator;
@@ -21,9 +22,9 @@ import org.json.JSONObject;
 
 public class ScanQR extends AppCompatActivity implements View.OnClickListener {
 
-    EditText fname, lname, dob, address;
+    TextView name, email, dob, address;
 
-    Button scanQR;
+    Button selectImage;
     //qr code scanner object
     private IntentIntegrator qrScan;
     ImageView imageView;
@@ -40,18 +41,18 @@ public class ScanQR extends AppCompatActivity implements View.OnClickListener {
 
 
     private void findViewsById() {
-        fname = findViewById(R.id.scanfname1);
-        lname = findViewById(R.id.scanlname1);
+        name = findViewById(R.id.scannedname);
+        email = findViewById(R.id.scannedemail);
 
-        dob = findViewById(R.id.scandob1);
+        dob = findViewById(R.id.scanneddob);
         //dob.setInputType(InputType.TYPE_NULL);
 
-        address = findViewById(R.id.scanaddress1);
-        scanQR = findViewById(R.id.scanqr);
+        address = findViewById(R.id.scannedaddress);
+        selectImage = findViewById(R.id.selectimage);
 
-        imageView = findViewById(R.id.scanimageview);
+        imageView = findViewById(R.id.profile_image);
 
-        scanQR.setOnClickListener(ScanQR.this);
+        selectImage.setOnClickListener(ScanQR.this);
 
     }
 
@@ -70,31 +71,14 @@ public class ScanQR extends AppCompatActivity implements View.OnClickListener {
                     //converting the data to json
                     JSONObject obj = new JSONObject(result.getContents());
                     //setting values to textviews
-                    fname.setText(obj.getString("firstname"));
-                    lname.setText(obj.getString("lastname"));
+                    name.setText(obj.getString("name"));
+                    email.setText(obj.getString("email"));
                     dob.setText(obj.getString("dob"));
-                    address.setText(obj.getString("address"));
                     String base64Image = obj.getString("image");
                     byte[] decodedString = Base64.decode(base64Image, Base64.DEFAULT);
                     Bitmap decodedByte = BitmapFactory.decodeByteArray(decodedString, 0, decodedString.length);
                     imageView.setImageBitmap(decodedByte);
 
-//                    byte [] encodeByte=Base64.decode(base64Image.getBytes(),Base64.DEFAULT);
-//                    BitmapFactory.Options options=new BitmapFactory.Options();
-//
-//                    Bitmap image = BitmapFactory.decodeByteArray(encodeByte, 0, encodeByte.length,options);
-//
-//
-//                    if(image.getHeight() <= 400 && image.getWidth() <= 400){
-//                        return ;
-//                    }
-//                    image = Bitmap.createScaledBitmap(image, 400, 400, false);
-//
-//                    ByteArrayOutputStream baos=new ByteArrayOutputStream();
-//                    image.compress(Bitmap.CompressFormat.PNG,100, baos);
-//
-//                    byte [] b=baos.toByteArray();
-//                    System.gc();
                 } catch (JSONException e) {
                     e.printStackTrace();
                     //if control comes here
